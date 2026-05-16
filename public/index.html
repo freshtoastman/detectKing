@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>怪物重生計時器</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f0f1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; }
+
+    h1 { text-align: center; color: #ff6b6b; font-size: 1.6rem; margin-bottom: 4px; }
+
+    .status {
+      text-align: center; font-size: 0.75rem; color: #2ed573; margin-bottom: 16px;
+    }
+    .status .dot {
+      display: inline-block; width: 7px; height: 7px;
+      background: #2ed573; border-radius: 50%; margin-right: 3px;
+      animation: blink 2s infinite;
+    }
+    .status.off { color: #ff4757; }
+    .status.off .dot { background: #ff4757; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* === Control bar === */
+    .control-section {
+      background: #1a1a2e; border-radius: 12px; padding: 16px;
+      margin-bottom: 12px; border: 1px solid #2a2a4a;
+    }
+
+    .control-row {
+      display: flex; gap: 16px; align-items: center; justify-content: center; flex-wrap: wrap;
+    }
+
+    .control-group {
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    .control-group label {
+      font-size: 0.9rem; color: #aaa; white-space: nowrap; font-weight: 600;
+    }
+
+    /* Channel spinner */
+    .spinner {
+      display: flex; align-items: center; gap: 0;
+    }
+
+    .spinner-btn {
+      width: 44px; height: 44px; border: 1px solid #3a3a5a;
+      background: #252545; color: #ccc; font-size: 1.4rem; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: all .15s; user-select: none;
+    }
+    .spinner-btn:hover { background: #3a3a6a; color: #fff; }
+    .spinner-btn:active { background: #4a4a7a; }
+    .spinner-btn.left { border-radius: 10px 0 0 10px; }
+    .spinner-btn.right { border-radius: 0 10px 10px 0; }
+
+    .ch-input {
+      width: 72px; height: 44px; padding: 0 4px; background: #0f0f1a;
+      border: 1px solid #3a3a5a; border-left: none; border-right: none;
+      color: #fff; font-size: 1.3rem; font-weight: 700;
+      text-align: center; outline: none;
+      -moz-appearance: textfield;
+    }
+    .ch-input::-webkit-outer-spin-button,
+    .ch-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+    .respawn-input {
+      width: 80px; height: 44px; padding: 0 8px; background: #0f0f1a;
+      border: 1px solid #3a3a5a; border-radius: 10px;
+      color: #fff; font-size: 1.3rem; font-weight: 700;
+      text-align: center; outline: none; transition: border-color .2s;
+      -moz-appearance: textfield;
+    }
+    .respawn-input::-webkit-outer-spin-button,
+    .respawn-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .respawn-input:focus { border-color: #ff6b6b; }
+
+    .unit-hint { font-size: 0.8rem; color: #666; }
+
+    /* === Monster buttons === */
+    .monster-section {
+      background: #1a1a2e; border-radius: 12px; padding: 16px;
+      margin-bottom: 20px; border: 1px solid #2a2a4a;
+    }
+
+    .monster-section h2 {
+      font-size: 0.85rem; color: #666; margin-bottom: 12px; text-align: center;
+    }
+
+    .monster-grid {
+      display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+    }
+
+    .monster-btn {
+      flex: 1; min-width: 140px; max-width: 220px;
+      padding: 18px 12px; border: 2px solid; border-radius: 14px;
+      background: rgba(255,255,255,0.02); cursor: pointer;
+      text-align: center; transition: all .15s;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .monster-btn:hover { transform: scale(1.05); filter: brightness(1.3); }
+    .monster-btn:active { transform: scale(0.96); }
+
+    .monster-btn .mb-icon { font-size: 2rem; }
+    .monster-btn .mb-name { font-size: 1.1rem; font-weight: 700; }
+
+    .monster-btn.doom { border-color: #ff4757; color: #ff4757; }
+    .monster-btn.snow { border-color: #3498db; color: #3498db; }
+    .monster-btn.time { border-color: #9b59b6; color: #9b59b6; }
+
+    .flash { animation: flashAnim .4s ease; }
+    @keyframes flashAnim {
+      0% { filter: brightness(2); transform: scale(1.1); }
+      100% { filter: brightness(1); transform: scale(1); }
+    }
+
+    /* === Tab bar === */
+    .tab-bar {
+      display: flex; gap: 0; margin-bottom: 12px; border-bottom: 2px solid #2a2a4a;
+    }
+    .tab-btn {
+      flex: 1; padding: 10px 0; text-align: center; background: none; border: none;
+      color: #888; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+      border-bottom: 3px solid transparent; margin-bottom: -2px; transition: all .2s;
+    }
+    .tab-btn:hover { color: #ccc; }
+    .tab-btn.active { color: #fff; border-bottom-color: #ff6b6b; }
+    .tab-btn .tab-count {
+      font-size: 0.75rem; color: #555; margin-left: 4px;
+    }
+    .tab-btn.active .tab-count { color: #ff6b6b; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* === Timer list view === */
+    .list-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 12px;
+    }
+    .list-header h2 { font-size: 1rem; color: #ccc; }
+    .btn-clear {
+      background: none; border: 1px solid #3a3a5a; color: #888;
+      border-radius: 6px; padding: 4px 12px; cursor: pointer;
+      font-size: 0.8rem; transition: all .2s;
+    }
+    .btn-clear:hover { border-color: #ff4757; color: #ff4757; }
+
+    .timer-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .timer-card {
+      background: #1a1a2e; border-radius: 10px; padding: 14px 18px;
+      border-left: 4px solid #3a3a5a; border-top: 1px solid #2a2a4a;
+      border-right: 1px solid #2a2a4a; border-bottom: 1px solid #2a2a4a;
+      display: flex; justify-content: space-between; align-items: center;
+      transition: all .3s;
+    }
+    .timer-card.type-doom { border-left-color: #ff4757; }
+    .timer-card.type-snow { border-left-color: #3498db; }
+    .timer-card.type-time { border-left-color: #9b59b6; }
+
+    .timer-card.respawned {
+      border-color: #2ed573 !important;
+      background: #1a2e1a;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(46,213,115,.3); }
+      50% { box-shadow: 0 0 12px 4px rgba(46,213,115,.3); }
+    }
+
+    .timer-info { flex: 1; }
+    .timer-info .channel { font-size: 0.8rem; color: #7c7cff; font-weight: 600; }
+    .timer-info .monster-name { font-size: 1.15rem; font-weight: 600; color: #fff; }
+    .timer-info .kill-time { font-size: 0.7rem; color: #666; margin-top: 2px; }
+
+    .timer-right { display: flex; align-items: center; gap: 12px; }
+
+    .countdown {
+      font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums;
+      min-width: 90px; text-align: right;
+    }
+    .countdown.active { color: #ff6b6b; }
+    .countdown.done { color: #2ed573; }
+
+    .btn-adjust {
+      background: none; border: 1px solid #3a3a5a; color: #aaa;
+      border-radius: 4px; padding: 3px 6px; cursor: pointer;
+      font-size: 0.7rem; font-weight: 600; transition: all .15s;
+      min-width: 28px; text-align: center;
+    }
+    .btn-adjust:hover { border-color: #7c7cff; color: #7c7cff; }
+
+    .btn-remove {
+      background: none; border: 1px solid #3a3a5a; color: #888;
+      border-radius: 6px; padding: 5px 9px; cursor: pointer;
+      font-size: 0.75rem; transition: all .2s;
+    }
+    .btn-remove:hover { border-color: #ff4757; color: #ff4757; }
+
+    .empty-state { text-align: center; color: #555; padding: 32px; font-size: 0.9rem; }
+
+    /* === Channel table view === */
+    .ch-table {
+      width: 100%; border-collapse: separate; border-spacing: 0;
+    }
+    .ch-table thead th {
+      position: sticky; top: 0; background: #13132a; color: #aaa;
+      font-size: 0.8rem; font-weight: 600; text-align: left;
+      padding: 8px 12px; border-bottom: 2px solid #2a2a4a;
+    }
+    .ch-table tbody tr {
+      transition: background .15s;
+    }
+    .ch-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+    .ch-table tbody td {
+      padding: 10px 12px; border-bottom: 1px solid #1f1f3a;
+      font-size: 0.9rem; vertical-align: middle;
+    }
+
+    .ch-table .td-ch {
+      font-weight: 700; color: #7c7cff; font-size: 1rem; white-space: nowrap;
+      width: 80px;
+    }
+    .ch-table .td-monster {
+      font-weight: 600; color: #fff; white-space: nowrap;
+    }
+    .ch-table .td-monster .dot {
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      margin-right: 6px; vertical-align: middle;
+    }
+    .ch-table .td-monster .dot.doom { background: #ff4757; }
+    .ch-table .td-monster .dot.snow { background: #3498db; }
+    .ch-table .td-monster .dot.time { background: #9b59b6; }
+
+    .ch-table .td-cd {
+      font-weight: 700; font-variant-numeric: tabular-nums;
+      font-size: 1.1rem; width: 110px;
+    }
+    .ch-table .td-cd.active { color: #ff6b6b; }
+    .ch-table .td-cd.done { color: #2ed573; }
+
+    .ch-table .td-respawn {
+      color: #666; font-size: 0.8rem; white-space: nowrap; width: 90px;
+    }
+    .ch-table .td-adjust { width: 90px; white-space: nowrap; text-align: center; }
+    .ch-table .td-action { width: 40px; text-align: center; }
+
+    .ch-table tr.row-done { background: rgba(46,213,115,0.06); }
+
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #2ed573; color: #0f0f1a; padding: 10px 24px;
+      border-radius: 8px; font-weight: 600; font-size: 0.9rem;
+      opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 200;
+    }
+    .toast.show { opacity: 1; }
+
+    @media (max-width: 600px) {
+      .control-row { flex-direction: column; align-items: center; }
+      .monster-btn { min-width: 100px; padding: 14px 8px; }
+      .monster-btn .mb-icon { font-size: 1.6rem; }
+      .timer-card { flex-direction: column; gap: 10px; align-items: flex-start; }
+      .timer-right { align-self: flex-end; }
+      .ch-table .td-respawn { display: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>怪物重生計時器</h1>
+  <div class="status" id="status"><span class="dot"></span> 已連線 — 多人即時同步</div>
+
+  <!-- Channel + Respawn selector -->
+  <div class="control-section">
+    <div class="control-row">
+      <div class="control-group">
+        <label>頻道</label>
+        <div class="spinner">
+          <button class="spinner-btn left" onmousedown="startSpin(-1)" onmouseup="stopSpin()" onmouseleave="stopSpin()" ontouchstart="startSpin(-1)" ontouchend="stopSpin()">−</button>
+          <input type="number" class="ch-input" id="chInput" min="1" max="1000" value="1">
+          <button class="spinner-btn right" onmousedown="startSpin(1)" onmouseup="stopSpin()" onmouseleave="stopSpin()" ontouchstart="startSpin(1)" ontouchend="stopSpin()">+</button>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>重生</label>
+        <input type="number" class="respawn-input" id="respawnInput" min="1" placeholder="分鐘">
+        <span class="unit-hint">分鐘</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Monster quick kill buttons -->
+  <div class="monster-section">
+    <h2>選擇頻道與重生時間，點擊怪物一鍵記錄</h2>
+    <div class="monster-grid">
+      <button class="monster-btn doom" onclick="killMonster('厄運死神', this)">
+        <div class="mb-icon">💀</div>
+        <div class="mb-name">厄運死神</div>
+      </button>
+      <button class="monster-btn snow" onclick="killMonster('雪怪', this)">
+        <div class="mb-icon">❄️</div>
+        <div class="mb-name">雪怪</div>
+      </button>
+      <button class="monster-btn time" onclick="killMonster('時間之路', this)">
+        <div class="mb-icon">⏳</div>
+        <div class="mb-name">時間之路</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('channel')" id="tabChannel">
+      頻道總覽 <span class="tab-count" id="tabChCount">0</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('list')" id="tabList">
+      時間列表 <span class="tab-count" id="tabListCount">0</span>
+    </button>
+  </div>
+
+  <!-- Channel table view -->
+  <div class="tab-content active" id="viewChannel">
+    <div class="list-header">
+      <h2></h2>
+      <button class="btn-clear" onclick="clearRespawned()">清除已重生</button>
+    </div>
+    <table class="ch-table">
+      <thead>
+        <tr>
+          <th>頻道</th>
+          <th>怪物</th>
+          <th>倒數</th>
+          <th>重生時間</th>
+          <th>微調</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="chTableBody">
+      </tbody>
+    </table>
+    <div class="empty-state" id="chEmpty">尚無紀錄</div>
+  </div>
+
+  <!-- Timer list view -->
+  <div class="tab-content" id="viewList">
+    <div class="list-header">
+      <h2></h2>
+      <button class="btn-clear" onclick="clearRespawned()">清除已重生</button>
+    </div>
+    <div class="timer-list" id="timerList">
+      <div class="empty-state">尚無紀錄</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let timers = [];
+  let spinTimer = null;
+  let spinDelay = 300;
+
+  const MONSTER_TYPE = {
+    '厄運死神': 'doom',
+    '雪怪': 'snow',
+    '時間之路': 'time',
+  };
+
+  // --- Spinner ---
+  function adjustCh(dir) {
+    const el = document.getElementById('chInput');
+    let v = parseInt(el.value, 10) || 1;
+    v = Math.max(1, Math.min(1000, v + dir));
+    el.value = v;
+  }
+
+  function startSpin(dir) {
+    adjustCh(dir);
+    spinDelay = 300;
+    clearTimeout(spinTimer);
+    spinTimer = setTimeout(function repeat() {
+      adjustCh(dir);
+      spinDelay = Math.max(50, spinDelay - 30);
+      spinTimer = setTimeout(repeat, spinDelay);
+    }, spinDelay);
+  }
+
+  function stopSpin() {
+    clearTimeout(spinTimer);
+  }
+
+  // --- API ---
+  async function fetchTimers() {
+    timers = await fetch('/api/timers').then(r => r.json());
+    renderAll();
+  }
+
+  function connectSSE() {
+    const el = document.getElementById('status');
+    const es = new EventSource('/api/events');
+    es.onopen = () => {
+      el.className = 'status';
+      el.innerHTML = '<span class="dot"></span> 已連線 — 多人即時同步';
+    };
+    es.addEventListener('update', e => { timers = JSON.parse(e.data); renderAll(); });
+    es.onerror = () => {
+      el.className = 'status off';
+      el.innerHTML = '<span class="dot"></span> 連線中斷，重新連線中...';
+    };
+  }
+
+  async function killMonster(monster, btnEl) {
+    const ch = parseInt(document.getElementById('chInput').value, 10);
+    const respawnMin = parseInt(document.getElementById('respawnInput').value, 10);
+
+    if (!ch || ch < 1 || ch > 1000) {
+      showToast('請輸入有效頻道 (1-1000)');
+      document.getElementById('chInput').focus();
+      return;
+    }
+    if (!respawnMin || respawnMin < 1) {
+      showToast('請輸入重生時間（分鐘）');
+      document.getElementById('respawnInput').focus();
+      return;
+    }
+
+    btnEl.classList.remove('flash');
+    void btnEl.offsetWidth;
+    btnEl.classList.add('flash');
+
+    await fetch('/api/timers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channel: `${ch}頻`, monster, respawnMin }),
+    });
+
+    showToast(`${ch}頻 ${monster} 已記錄`);
+  }
+
+  async function adjustTimer(id, ms) {
+    await fetch('/api/timers/adjust', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, adjustMs: ms }),
+    });
+  }
+
+  async function removeTimer(id) {
+    await fetch(`/api/timers/${id}`, { method: 'DELETE' });
+  }
+
+  async function clearRespawned() {
+    await fetch('/api/timers/clear-respawned', { method: 'POST' });
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1500);
+  }
+
+  // --- Tabs ---
+  function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    if (name === 'channel') {
+      document.getElementById('tabChannel').classList.add('active');
+      document.getElementById('viewChannel').classList.add('active');
+    } else {
+      document.getElementById('tabList').classList.add('active');
+      document.getElementById('viewList').classList.add('active');
+    }
+  }
+
+  // --- Render ---
+  function renderAll() {
+    document.getElementById('tabChCount').textContent = timers.length;
+    document.getElementById('tabListCount').textContent = timers.length;
+    renderChannelTable();
+    renderTimerList();
+  }
+
+  function chSort(a, b) {
+    const na = parseInt(a.channel) || 0;
+    const nb = parseInt(b.channel) || 0;
+    return na - nb;
+  }
+
+  function renderChannelTable() {
+    const body = document.getElementById('chTableBody');
+    const empty = document.getElementById('chEmpty');
+
+    if (timers.length === 0) {
+      body.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    const sorted = [...timers].sort(chSort);
+    const now = Date.now();
+
+    body.innerHTML = sorted.map(t => {
+      const remain = (t.killTime + t.respawnMs) - now;
+      const done = remain <= 0;
+      const type = MONSTER_TYPE[t.monster] || '';
+      return `
+        <tr class="${done ? 'row-done' : ''}">
+          <td class="td-ch">${esc(t.channel)}</td>
+          <td class="td-monster"><span class="dot ${type}"></span>${esc(t.monster)}</td>
+          <td class="td-cd ${done ? 'done' : 'active'}" data-target="${t.killTime + t.respawnMs}">${fmtCD(remain)}</td>
+          <td class="td-respawn">${fmtTime(t.killTime + t.respawnMs)}</td>
+          <td class="td-adjust"><button class="btn-adjust" onclick="adjustTimer(${t.id},-5000)">-5s</button> <button class="btn-adjust" onclick="adjustTimer(${t.id},5000)">+5s</button></td>
+          <td class="td-action"><button class="btn-remove" onclick="removeTimer(${t.id})">✕</button></td>
+        </tr>`;
+    }).join('');
+  }
+
+  function renderTimerList() {
+    const list = document.getElementById('timerList');
+
+    if (timers.length === 0) {
+      list.innerHTML = '<div class="empty-state">尚無紀錄</div>';
+      return;
+    }
+
+    const now = Date.now();
+    list.innerHTML = timers.map(t => {
+      const remain = (t.killTime + t.respawnMs) - now;
+      const done = remain <= 0;
+      const type = MONSTER_TYPE[t.monster] || '';
+
+      return `
+        <div class="timer-card type-${type} ${done ? 'respawned' : ''}">
+          <div class="timer-info">
+            <div class="channel">${esc(t.channel)}</div>
+            <div class="monster-name">${esc(t.monster)}</div>
+            <div class="kill-time">擊殺 ${fmtTime(t.killTime)} ｜ 重生 ${fmtTime(t.killTime + t.respawnMs)}</div>
+          </div>
+          <div class="timer-right">
+            <button class="btn-adjust" onclick="adjustTimer(${t.id},-5000)">-5s</button>
+            <div class="countdown ${done ? 'done' : 'active'}" data-target="${t.killTime + t.respawnMs}">
+              ${fmtCD(remain)}
+            </div>
+            <button class="btn-adjust" onclick="adjustTimer(${t.id},5000)">+5s</button>
+            <button class="btn-remove" onclick="removeTimer(${t.id})">✕</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // --- Helpers ---
+  function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  function fmtCD(ms) {
+    if (ms <= 0) return '已重生';
+    const sec = Math.floor(ms / 1000);
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    return h > 0
+      ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+      : `${m}:${String(s).padStart(2,'0')}`;
+  }
+
+  function fmtTime(ts) {
+    return new Date(ts).toLocaleTimeString('zh-TW', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  }
+
+  function tick() {
+    document.querySelectorAll('[data-target]').forEach(el => {
+      const remain = parseInt(el.dataset.target, 10) - Date.now();
+      el.textContent = fmtCD(remain);
+      if (el.tagName === 'TD') {
+        el.className = remain <= 0 ? 'td-cd done' : 'td-cd active';
+        el.closest('tr').className = remain <= 0 ? 'row-done' : '';
+      } else {
+        el.className = remain <= 0 ? 'countdown done' : 'countdown active';
+        const card = el.closest('.timer-card');
+        if (card) {
+          if (remain <= 0) card.classList.add('respawned');
+          else card.classList.remove('respawned');
+        }
+      }
+    });
+    requestAnimationFrame(tick);
+  }
+
+  fetchTimers();
+  connectSSE();
+  tick();
+</script>
+</body>
+</html>
