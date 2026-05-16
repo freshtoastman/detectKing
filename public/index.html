@@ -620,7 +620,7 @@
       const done = remain <= 0;
       const type = MONSTER_TYPE[t.monster] || '';
       return `
-        <tr class="${done ? 'row-done' : ''}" onmouseenter="fillChannel('${esc(t.channel)}')">
+        <tr class="${done ? 'row-done' : ''}" onclick="fillChannel('${esc(t.channel)}')">
           <td class="td-ch">${esc(t.channel)}</td>
           <td class="td-monster"><span class="dot ${type}"></span>${esc(t.monster)}</td>
           <td class="td-cd ${done ? 'done' : 'active'}" data-target="${t.killTime + t.respawnMs}">${fmtCD(remain)}</td>
