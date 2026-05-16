@@ -255,7 +255,17 @@
       color: #666; font-size: 0.8rem; white-space: nowrap; width: 90px;
     }
     .ch-table .td-adjust { width: 90px; white-space: nowrap; text-align: center; }
+    .ch-table .td-reset { width: 50px; text-align: center; }
     .ch-table .td-action { width: 40px; text-align: center; }
+
+    .ch-table tbody tr { cursor: pointer; }
+
+    .btn-reset {
+      background: none; border: 1px solid #3a3a5a; color: #f39c12;
+      border-radius: 4px; padding: 3px 7px; cursor: pointer;
+      font-size: 0.7rem; font-weight: 600; transition: all .15s;
+    }
+    .btn-reset:hover { border-color: #f39c12; background: rgba(243,156,18,0.1); }
 
     .ch-table tr.row-done { background: rgba(46,213,115,0.06); }
 
@@ -345,6 +355,7 @@
           <th>擊殺時間</th>
           <th>重生時間</th>
           <th>微調</th>
+          <th>重置</th>
           <th></th>
         </tr>
       </thead>
@@ -520,6 +531,21 @@
     }
   }
 
+  function resetTimer(id) {
+    const timer = timers.find(t => t.id === id);
+    if (!timer) return;
+
+    timer.killTime = Date.now();
+    saveLocal();
+    renderAll();
+    showToast(`${timer.channel} ${timer.monster} 已重置`);
+  }
+
+  function fillChannel(ch) {
+    const num = parseInt(ch) || 1;
+    document.getElementById('chInput').value = num;
+  }
+
   function removeTimer(id) {
     timers = timers.filter(t => t.id !== id);
     saveLocal();
@@ -594,13 +620,14 @@
       const done = remain <= 0;
       const type = MONSTER_TYPE[t.monster] || '';
       return `
-        <tr class="${done ? 'row-done' : ''}">
+        <tr class="${done ? 'row-done' : ''}" onmouseenter="fillChannel('${esc(t.channel)}')">
           <td class="td-ch">${esc(t.channel)}</td>
           <td class="td-monster"><span class="dot ${type}"></span>${esc(t.monster)}</td>
           <td class="td-cd ${done ? 'done' : 'active'}" data-target="${t.killTime + t.respawnMs}">${fmtCD(remain)}</td>
           <td class="td-respawn">${fmtTime(t.killTime)}</td>
           <td class="td-respawn">${fmtTime(t.killTime + t.respawnMs)}</td>
           <td class="td-adjust"><button class="btn-adjust" onclick="adjustTimer(${t.id},-5000)">-5s</button> <button class="btn-adjust" onclick="adjustTimer(${t.id},5000)">+5s</button></td>
+          <td class="td-reset"><button class="btn-reset" onclick="resetTimer(${t.id})">重置</button></td>
           <td class="td-action"><button class="btn-remove" onclick="removeTimer(${t.id})">✕</button></td>
         </tr>`;
     }).join('');
