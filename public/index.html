@@ -342,6 +342,7 @@
           <th>頻道</th>
           <th>怪物</th>
           <th>倒數</th>
+          <th>擊殺時間</th>
           <th>重生時間</th>
           <th>微調</th>
           <th></th>
@@ -522,6 +523,7 @@
           <td class="td-ch">${esc(t.channel)}</td>
           <td class="td-monster"><span class="dot ${type}"></span>${esc(t.monster)}</td>
           <td class="td-cd ${done ? 'done' : 'active'}" data-target="${t.killTime + t.respawnMs}">${fmtCD(remain)}</td>
+          <td class="td-respawn">${fmtTime(t.killTime)}</td>
           <td class="td-respawn">${fmtTime(t.killTime + t.respawnMs)}</td>
           <td class="td-adjust"><button class="btn-adjust" onclick="adjustTimer(${t.id},-5000)">-5s</button> <button class="btn-adjust" onclick="adjustTimer(${t.id},5000)">+5s</button></td>
           <td class="td-action"><button class="btn-remove" onclick="removeTimer(${t.id})">✕</button></td>

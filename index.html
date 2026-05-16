@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>怪物重生計時器</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f0f1a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #ff6b6b;
+      font-size: 1.8rem;
+      margin-bottom: 24px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .form-section {
+      background: #1a1a2e;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      border: 1px solid #2a2a4a;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+
+    .form-group {
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      color: #aaa;
+      margin-bottom: 6px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px 12px;
+      background: #0f0f1a;
+      border: 1px solid #3a3a5a;
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus {
+      border-color: #ff6b6b;
+    }
+
+    .btn-kill {
+      padding: 10px 24px;
+      background: #ff6b6b;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-kill:hover { background: #ff4757; }
+
+    .timer-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .timer-card {
+      background: #1a1a2e;
+      border-radius: 12px;
+      padding: 16px 20px;
+      border: 1px solid #2a2a4a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: border-color 0.3s, background 0.3s;
+    }
+
+    .timer-card.respawned {
+      border-color: #2ed573;
+      background: #1a2e1a;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(46, 213, 115, 0.3); }
+      50% { box-shadow: 0 0 12px 4px rgba(46, 213, 115, 0.3); }
+    }
+
+    .timer-info {
+      flex: 1;
+    }
+
+    .timer-info .channel {
+      font-size: 0.8rem;
+      color: #7c7cff;
+      margin-bottom: 2px;
+    }
+
+    .timer-info .monster-name {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .timer-info .killer {
+      font-size: 0.8rem;
+      color: #aaa;
+      margin-top: 2px;
+    }
+
+    .timer-info .kill-time {
+      font-size: 0.75rem;
+      color: #666;
+      margin-top: 2px;
+    }
+
+    .timer-right {
+      text-align: right;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .countdown {
+      font-size: 1.6rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      min-width: 100px;
+      text-align: right;
+    }
+
+    .countdown.active { color: #ff6b6b; }
+    .countdown.respawned { color: #2ed573; }
+
+    .btn-remove {
+      background: none;
+      border: 1px solid #3a3a5a;
+      color: #888;
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+
+    .btn-remove:hover {
+      border-color: #ff4757;
+      color: #ff4757;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #555;
+      padding: 40px;
+      font-size: 1rem;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .section-header h2 {
+      font-size: 1.1rem;
+      color: #ccc;
+    }
+
+    .btn-clear-all {
+      background: none;
+      border: 1px solid #3a3a5a;
+      color: #888;
+      border-radius: 6px;
+      padding: 6px 14px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+
+    .btn-clear-all:hover {
+      border-color: #ff4757;
+      color: #ff4757;
+    }
+
+    @media (max-width: 600px) {
+      .form-row { flex-direction: column; }
+      .form-group { min-width: 100%; }
+      .timer-card { flex-direction: column; gap: 12px; align-items: flex-start; }
+      .timer-right { align-self: flex-end; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>怪物重生計時器</h1>
+
+    <div class="form-section">
+      <div class="form-row">
+        <div class="form-group">
+          <label>頻道</label>
+          <input type="text" id="channel" placeholder="例：CH1">
+        </div>
+        <div class="form-group">
+          <label>怪物名稱</label>
+          <input type="text" id="monster" placeholder="例：紅龍">
+        </div>
+        <div class="form-group">
+          <label>擊殺者</label>
+          <input type="text" id="killer" placeholder="例：玩家A">
+        </div>
+        <div class="form-group">
+          <label>重生時間（分鐘）</label>
+          <input type="number" id="respawnMin" placeholder="例：120" min="1">
+        </div>
+        <button class="btn-kill" onclick="addKill()">擊殺</button>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <h2>計時中</h2>
+      <button class="btn-clear-all" onclick="clearRespawned()">清除已重生</button>
+    </div>
+
+    <div class="timer-list" id="timerList">
+      <div class="empty-state" id="emptyState">尚無紀錄，擊殺怪物後會出現在這裡</div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'monsterTimers';
+
+    function loadTimers() {
+      const data = localStorage.getItem(STORAGE_KEY);
+      return data ? JSON.parse(data) : [];
+    }
+
+    function saveTimers(timers) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(timers));
+    }
+
+    function addKill() {
+      const channel = document.getElementById('channel').value.trim();
+      const monster = document.getElementById('monster').value.trim();
+      const killer = document.getElementById('killer').value.trim();
+      const respawnMin = parseInt(document.getElementById('respawnMin').value, 10);
+
+      if (!channel || !monster || !killer || !respawnMin || respawnMin < 1) {
+        alert('請填寫所有欄位');
+        return;
+      }
+
+      const now = Date.now();
+      const timer = {
+        id: now + Math.random(),
+        channel,
+        monster,
+        killer,
+        killTime: now,
+        respawnMs: respawnMin * 60 * 1000,
+      };
+
+      const timers = loadTimers();
+      timers.unshift(timer);
+      saveTimers(timers);
+
+      document.getElementById('monster').value = '';
+      document.getElementById('monster').focus();
+
+      renderTimers();
+    }
+
+    function removeTimer(id) {
+      const timers = loadTimers().filter(t => t.id !== id);
+      saveTimers(timers);
+      renderTimers();
+    }
+
+    function clearRespawned() {
+      const now = Date.now();
+      const timers = loadTimers().filter(t => {
+        const remaining = (t.killTime + t.respawnMs) - now;
+        return remaining > 0;
+      });
+      saveTimers(timers);
+      renderTimers();
+    }
+
+    function formatCountdown(ms) {
+      if (ms <= 0) return '已重生';
+      const totalSec = Math.floor(ms / 1000);
+      const h = Math.floor(totalSec / 3600);
+      const m = Math.floor((totalSec % 3600) / 60);
+      const s = totalSec % 60;
+      if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+      return `${m}:${String(s).padStart(2, '0')}`;
+    }
+
+    function formatTime(ts) {
+      const d = new Date(ts);
+      return d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function renderTimers() {
+      const timers = loadTimers();
+      const list = document.getElementById('timerList');
+      const empty = document.getElementById('emptyState');
+
+      if (timers.length === 0) {
+        list.innerHTML = '';
+        list.appendChild(empty);
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+
+      const now = Date.now();
+      list.innerHTML = timers.map(t => {
+        const remaining = (t.killTime + t.respawnMs) - now;
+        const isRespawned = remaining <= 0;
+        const respawnTime = new Date(t.killTime + t.respawnMs);
+
+        return `
+          <div class="timer-card ${isRespawned ? 'respawned' : ''}" data-id="${t.id}">
+            <div class="timer-info">
+              <div class="channel">${escapeHtml(t.channel)}</div>
+              <div class="monster-name">${escapeHtml(t.monster)}</div>
+              <div class="killer">擊殺者：${escapeHtml(t.killer)}</div>
+              <div class="kill-time">擊殺時間：${formatTime(t.killTime)} ｜ 預計重生：${formatTime(t.killTime + t.respawnMs)}</div>
+            </div>
+            <div class="timer-right">
+              <div class="countdown ${isRespawned ? 'respawned' : 'active'}" data-target="${t.killTime + t.respawnMs}">
+                ${formatCountdown(remaining)}
+              </div>
+              <button class="btn-remove" onclick="removeTimer(${t.id})">移除</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function tick() {
+      const countdowns = document.querySelectorAll('.countdown[data-target]');
+      const now = Date.now();
+
+      countdowns.forEach(el => {
+        const target = parseInt(el.dataset.target, 10);
+        const remaining = target - now;
+        el.textContent = formatCountdown(remaining);
+
+        const card = el.closest('.timer-card');
+        if (remaining <= 0) {
+          el.classList.remove('active');
+          el.classList.add('respawned');
+          card.classList.add('respawned');
+        } else {
+          el.classList.add('active');
+          el.classList.remove('respawned');
+          card.classList.remove('respawned');
+        }
+      });
+
+      requestAnimationFrame(tick);
+    }
+
+    document.querySelectorAll('.form-group input').forEach(input => {
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') addKill();
+      });
+    });
+
+    renderTimers();
+    tick();
+  </script>
+</body>
+</html>
