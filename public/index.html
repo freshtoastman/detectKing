@@ -369,15 +369,27 @@
 <div class="toast" id="toast"></div>
 
 <script>
+  const STORAGE_KEY = 'detectKing_timers';
   let timers = [];
   let spinTimer = null;
   let spinDelay = 300;
+  let serverAvailable = false;
 
   const MONSTER_TYPE = {
     '厄運死神': 'doom',
     '雪怪': 'snow',
     '時間之路': 'time',
   };
+
+  // --- LocalStorage ---
+  function saveLocal() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(timers));
+  }
+
+  function loadLocal() {
+    const data = localStorage.getItem(STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  }
 
   // --- Spinner ---
   function adjustCh(dir) {
@@ -402,27 +414,52 @@
     clearTimeout(spinTimer);
   }
 
-  // --- API ---
-  async function fetchTimers() {
-    timers = await fetch('/api/timers').then(r => r.json());
-    renderAll();
+  // --- Server sync (optional) ---
+  async function tryConnectServer() {
+    try {
+      const res = await fetch('/api/timers');
+      if (res.ok) {
+        serverAvailable = true;
+        timers = await res.json();
+        saveLocal();
+        renderAll();
+        connectSSE();
+        updateStatus(true);
+      }
+    } catch (e) {
+      serverAvailable = false;
+      updateStatus(false);
+    }
   }
 
   function connectSSE() {
-    const el = document.getElementById('status');
     const es = new EventSource('/api/events');
-    es.onopen = () => {
-      el.className = 'status';
-      el.innerHTML = '<span class="dot"></span> 已連線 — 多人即時同步';
-    };
-    es.addEventListener('update', e => { timers = JSON.parse(e.data); renderAll(); });
+    es.addEventListener('update', e => {
+      timers = JSON.parse(e.data);
+      saveLocal();
+      renderAll();
+    });
     es.onerror = () => {
-      el.className = 'status off';
-      el.innerHTML = '<span class="dot"></span> 連線中斷，重新連線中...';
+      serverAvailable = false;
+      updateStatus(false);
+      es.close();
     };
   }
 
-  async function killMonster(monster, btnEl) {
+  function updateStatus(online) {
+    const el = document.getElementById('status');
+    if (online) {
+      el.className = 'status';
+      el.innerHTML = '<span class="dot"></span> 已連線 — 多人即時同步';
+    } else {
+      el.className = 'status';
+      el.innerHTML = '<span class="dot"></span> 本機模式 — 資料存在瀏覽器';
+      el.querySelector('.dot').style.background = '#f39c12';
+    }
+  }
+
+  // --- Actions ---
+  function killMonster(monster, btnEl) {
     const ch = parseInt(document.getElementById('chInput').value, 10);
     const respawnMin = parseInt(document.getElementById('respawnInput').value, 10);
 
@@ -441,29 +478,67 @@
     void btnEl.offsetWidth;
     btnEl.classList.add('flash');
 
-    await fetch('/api/timers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ channel: `${ch}頻`, monster, respawnMin }),
-    });
+    const timer = {
+      id: Date.now() + Math.random(),
+      channel: `${ch}頻`,
+      monster,
+      killTime: Date.now(),
+      respawnMs: respawnMin * 60 * 1000,
+    };
+
+    timers.unshift(timer);
+    saveLocal();
+    renderAll();
+
+    if (serverAvailable) {
+      fetch('/api/timers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: timer.channel, monster, respawnMin }),
+      }).catch(() => {});
+    }
 
     showToast(`${ch}頻 ${monster} 已記錄`);
   }
 
-  async function adjustTimer(id, ms) {
-    await fetch('/api/timers/adjust', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, adjustMs: ms }),
-    });
+  function adjustTimer(id, ms) {
+    const timer = timers.find(t => t.id === id);
+    if (!timer) return;
+
+    timer.respawnMs += ms;
+    if (timer.respawnMs < 0) timer.respawnMs = 0;
+
+    saveLocal();
+    renderAll();
+
+    if (serverAvailable) {
+      fetch('/api/timers/adjust', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, adjustMs: ms }),
+      }).catch(() => {});
+    }
   }
 
-  async function removeTimer(id) {
-    await fetch(`/api/timers/${id}`, { method: 'DELETE' });
+  function removeTimer(id) {
+    timers = timers.filter(t => t.id !== id);
+    saveLocal();
+    renderAll();
+
+    if (serverAvailable) {
+      fetch(`/api/timers/${id}`, { method: 'DELETE' }).catch(() => {});
+    }
   }
 
-  async function clearRespawned() {
-    await fetch('/api/timers/clear-respawned', { method: 'POST' });
+  function clearRespawned() {
+    const now = Date.now();
+    timers = timers.filter(t => (t.killTime + t.respawnMs) > now);
+    saveLocal();
+    renderAll();
+
+    if (serverAvailable) {
+      fetch('/api/timers/clear-respawned', { method: 'POST' }).catch(() => {});
+    }
   }
 
   function showToast(msg) {
@@ -601,9 +676,11 @@
     requestAnimationFrame(tick);
   }
 
-  fetchTimers();
-  connectSSE();
+  // --- Init ---
+  timers = loadLocal();
+  renderAll();
   tick();
+  tryConnectServer();
 </script>
 </body>
 </html>
